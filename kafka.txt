@@ -1,0 +1,184 @@
+- producer
+<dependency>
+	<groupId>org.springframework.kafka</groupId>
+	<artifactId>spring-kafka</artifactId>
+</dependency>
+
+@Configuration
+class KafkaProducerConfig {
+
+    @Bean
+public ProducerFactory<String, Book> producerFactory() {
+    Map<String, Object> config = new HashMap<>();
+
+    config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+    config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+    config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+
+    return new DefaultKafkaProducerFactory<String, Book>(config);
+}
+
+@Bean
+public KafkaTemplate<String, Book> kafkaTemplate() {
+    return new KafkaTemplate<>(producerFactory());
+}
+
+}
+
+
+
+public class Book {
+
+	private int id;
+	private String title;
+	private String author;
+	private int price;
+
+
+
+
+
+
+
+@Autowired
+private KafkaTemplate<String, Book> kafkaTemplate;
+
+private static final String TOPIC = "kafka-topic";
+
+@GetMapping("/publish")
+public String publishBook() {
+
+    int id = (int)(Math.floor(Math.random()*100));
+    kafkaTemplate.send(TOPIC, new Book(id, "Java Microservices", "Mark Carl", 99));
+
+    return "Published successfully";
+}
+
+
+
+
+- consumer
+<dependency>
+    <groupId>org.springframework.kafka</groupId>
+    <artifactId>spring-kafka</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+</dependency>
+
+
+@EnableKafka
+@Configuration
+public class KafkaConsumerConfig{
+
+    @Bean
+    public ConsumerFactory<String, Book> userConsumerFactory() {
+        Map<String, Object> config = new HashMap<>();
+        
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        config.put(ConsumerConfig.GROUP_ID_CONFIG, "group_id");
+        config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        
+        return new DefaultKafkaConsumerFactory<>(
+            config, 
+            new StringDeserializer(),
+            new JsonDeserializer<>(Book.class)
+            );
+        }
+
+        @Bean
+        public ConcurrentKafkaListenerContainerFactory<String, Book> userKafkaListenerFactory() {
+            ConcurrentKafkaListenerContainerFactory<String, Book> factory 
+            = new ConcurrentKafkaListenerContainerFactory<>();
+            factory.setConsumerFactory(userConsumerFactory());
+            return factory;
+        }       
+}
+
+
+
+@KafkaListener(topics = "kafka-topic", groupId="group_id", containerFactory = "userKafkaListenerFactory")
+public void consumeJson(Book book) {
+    System.out.println("Consumed JSON Message: " + book);
+    // notify users
+    // start shipment
+    // cancel delivery
+}
+
+***********************************************************************************************************************************************************
+https://kafka.apache.org/downloads
+    downloads  - 2.8.0
+        Binary downloads
+            scala (latest version)
+
+
+
+kafka/config
+    server.properties
+        log-dirs=/tmp/kafka-logs
+        to 
+        log-dirs=~kafka/path/kafka-logs 
+
+    zookeeper.properties
+        dataDir=/tmp/zookeeper
+        to 
+        dataDir=~kafka/path/zookeeper-data 
+
+Start zookeeper
+-------------
+    $ ./zookeeper-server-start.bat ./../../config/zookeeper.properties
+        zookeeper--> 2181
+    
+
+Start kafka
+-------------
+    $ ./kafka-server-start.bat ./../../config/server.properties 
+    kafka --> 9092
+
+List topics
+--------------
+    $ ./bin/windows/kafka-topics.bat --list --zookeeper localhost:2181
+
+    3.2.0
+    $ ./kafka-topics.sh --list --bootstrap-server localhost:9092
+
+Create topic 
+--------------
+    $ ./bin/windows/kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic kafka_topic_name
+    $ ./bin/windows/kafka-topics.bat --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic kafka_topic
+
+    3.2.0
+    $ ./kafka-topics.sh --create --topic kafka-topic-name --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1
+    $ ./kafka-topics.sh --create --topic kafka-topic --bootstrap-server localhost:9092 --replication-factor 1 --partitions 1
+
+
+Produce 
+----------
+    $ ./bin/windows/kafka-console-producer.bat --broker-list localhost:9092 --topic kafka-topic-name
+
+    $ ./kafka-console-producer.sh --broker-list localhost:9092 --topic kafka-topic-name
+    
+     ./bin/windows/kafka-console-producer.bat --broker-list localhost:9092 --topic create_book
+
+
+Consume
+---------------
+    $ ./bin/windows/kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic kafka-topic-name --from-beginning
+    
+
+    $ ./kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic kafka-topic-name
+	
+	 ./bin/windows/kafka-console-consumer.bat --bootstrap-server localhost:9092 --topic create_book --from-beginning
+
+ running zookeeper and kafka server-start
+ -------------------------------------------
+ .\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
+ 
+ .\bin\windows\kafka-server-start.bat .\config/server.properties 
+
+
+
+
+
